@@ -28,7 +28,7 @@ interface MagicMirrorModule {
 
 declare var Module: MagicMirrorModule;
 
-Module.register("MMM-Dexcom", {
+Module.register("MMM-SugarValue", {
     defaults: {
         "usServerUrl": "https://share1.dexcom.com",
         "euServerUrl": "https://shareous1.dexcom.com",
@@ -45,13 +45,24 @@ Module.register("MMM-Dexcom", {
         } else if (this.reading == undefined) {
             wrapper.innerText = "Reading not available";
         } else if (this.config !== undefined) {
-            console.log(this.reading);
+            const reading: HTMLDivElement = document.createElement("div");
+            const date: HTMLDivElement = document.createElement("div");
+
+            if (this.reading.date !== undefined) {
+                date.innerText = this.reading.date.toLocaleString();
+                date.className = "dimmed small";
+            }
+
             const sugar: HTMLSpanElement = document.createElement("span");
+            const units: HTMLSpanElement = document.createElement("span");
             sugar.className = "bright medium";
+            units.className = "dimmed small";
             if (this.config.units === "mg") {
-                sugar.innerText = this.reading.sugarMl.toString() + " mg/dl";
+                sugar.innerText = this.reading.sugarMl.toString();
+                units.innerText = " mg/dl";
             } else {
-                sugar.innerText = this.reading.sugarMl.toString() + " mmol/l";
+                sugar.innerText = this.reading.sugarMl.toString();
+                units.innerText = " mmol/l";
             }
 
             const trend: HTMLSpanElement = document.createElement("span");
@@ -90,8 +101,11 @@ Module.register("MMM-Dexcom", {
                     break;
             }
 
-            wrapper.appendChild(trend);
-            wrapper.appendChild(sugar);
+            reading.appendChild(trend);
+            reading.appendChild(sugar);
+            reading.appendChild(units);
+            wrapper.appendChild(reading);
+            wrapper.appendChild(date);
         }
         return wrapper;
     },

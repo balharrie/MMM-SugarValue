@@ -22,7 +22,7 @@
         ModuleNotification["ALL_MODULES_STARTED"] = "ALL_MODULES_STARTED";
     })(ModuleNotification || (ModuleNotification = {}));
 
-    Module.register("MMM-Dexcom", {
+    Module.register("MMM-SugarValue", {
         defaults: {
             "usServerUrl": "https://share1.dexcom.com",
             "euServerUrl": "https://shareous1.dexcom.com",
@@ -41,14 +41,23 @@
                 wrapper.innerText = "Reading not available";
             }
             else if (this.config !== undefined) {
-                console.log(this.reading);
+                var reading = document.createElement("div");
+                var date = document.createElement("div");
+                if (this.reading.date !== undefined) {
+                    date.innerText = this.reading.date.toLocaleString();
+                    date.className = "dimmed small";
+                }
                 var sugar = document.createElement("span");
+                var units = document.createElement("span");
                 sugar.className = "bright medium";
+                units.className = "dimmed small";
                 if (this.config.units === "mg") {
-                    sugar.innerText = this.reading.sugarMl.toString() + " mg/dl";
+                    sugar.innerText = this.reading.sugarMl.toString();
+                    units.innerText = " mg/dl";
                 }
                 else {
-                    sugar.innerText = this.reading.sugarMl.toString() + " mmol/l";
+                    sugar.innerText = this.reading.sugarMl.toString();
+                    units.innerText = " mmol/l";
                 }
                 var trend = document.createElement("span");
                 trend.className = "dimmed medium";
@@ -84,8 +93,11 @@
                         trend.className += "fa-angle-up";
                         break;
                 }
-                wrapper.appendChild(trend);
-                wrapper.appendChild(sugar);
+                reading.appendChild(trend);
+                reading.appendChild(sugar);
+                reading.appendChild(units);
+                wrapper.appendChild(reading);
+                wrapper.appendChild(date);
             }
             return wrapper;
         },
