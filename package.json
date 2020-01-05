@@ -1,0 +1,36 @@
+{
+    "name": "MMM-Dexcom",
+    "description": "Unofficial Magic Mirror module for displaying CGM sugar readings Dexcom G6",
+    "version": "0.1.0",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/balharrie/MMM-SugarValue"
+    },
+    "license": "MIT",
+    "keywords": [
+        "MagicMirror",
+        "MagicMirror2",
+        "Dexcom"
+    ],
+    "author": "Neil Balharrie <neil@balharrie.co.uk>",
+    "scripts": {
+        "build": "rollup -c",
+        "clean": "del-cli --force dist && del-cli MMM-Dexcom.js && del-cli package-lock.json",
+        "clean-node": "del-cli --force node_modules"
+    },
+    "dependencies": {
+        "request": "2.88.0",
+        "qs": "6.9.1"
+    },
+    "devDependencies": {
+        "@types/request": "2.48.4",
+        "@types/qs": "6.9.0",
+        "rollup": "1.27.14",
+        "rollup-plugin-commonjs": "10.1.0",
+        "rollup-plugin-node-resolve": "5.2.0",
+        "rollup-plugin-typescript2": "0.25.3",
+        "tslib": "1.10.0",
+        "typescript": "3.4.3",
+        "del-cli": "3.0.0"
+    }
+}
