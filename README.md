@@ -3,6 +3,8 @@ Unofficial Magic Mirror module for displaying Dexcom G6 sugar readings via the s
 
 **NOTE: This does not replace your Dexcom applications or reader, and is only meant for a quick glance indication. You should not rely on it for any medication decisions etc.**
 
+![Example](screen.png)
+
 ## Installing the module
 
 Clone this git repository into your Magic Mirror modules directory using:
