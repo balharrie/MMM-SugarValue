@@ -62,11 +62,11 @@ Module.register("MMM-SugarValue", {
             sugar.className = "bright medium";
             units.className = "dimmed small";
             if (this.config.units === "mg") {
-                sugar.innerText = this.reading.sugarMl.toString();
-                units.innerText = " mg/dl";
+                sugar.innerText = this.reading.sugarMg.toString();
+                units.innerText = " mg/dL";
             } else {
-                sugar.innerText = this.reading.sugarMl.toString();
-                units.innerText = " mmol/l";
+                sugar.innerText = this.reading.sugarMmol.toString();
+                units.innerText = " mmol/L";
             }
 
             const trend: HTMLSpanElement = document.createElement("span");

@@ -10,8 +10,8 @@
         function DexcomReadingImpl(raw) {
             var dateMatch = raw.WT.match(/\((.*)\)/);
             this.date = dateMatch === null || dateMatch.length == 0 ? undefined : new Date(parseInt(dateMatch[1]));
-            this.sugar = raw.Value;
-            this.sugarMl = Math.floor(10 * (raw.Value / 18.0)) / 10;
+            this.sugarMg = raw.Value;
+            this.sugarMmol = Math.floor(10 * (raw.Value / 18.0)) / 10;
             this.trend = raw.Trend;
         }
         return DexcomReadingImpl;

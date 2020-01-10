@@ -4663,12 +4663,12 @@
                 sugar.className = "bright medium";
                 units.className = "dimmed small";
                 if (this.config.units === "mg") {
-                    sugar.innerText = this.reading.sugarMl.toString();
-                    units.innerText = " mg/dl";
+                    sugar.innerText = this.reading.sugarMg.toString();
+                    units.innerText = " mg/dL";
                 }
                 else {
-                    sugar.innerText = this.reading.sugarMl.toString();
-                    units.innerText = " mmol/l";
+                    sugar.innerText = this.reading.sugarMmol.toString();
+                    units.innerText = " mmol/L";
                 }
                 var trend = document.createElement("span");
                 switch (this.reading.trend) {
@@ -4734,7 +4734,7 @@
                 if (_this.clockSpan !== undefined && _this.reading !== undefined && _this.reading.date !== undefined) {
                     _this.clockSpan.textContent = moment(_this.reading.date).fromNow();
                 }
-            }, 1000);
+            }, 30000);
         },
         notificationReceived: function (notification, payload, sender) {
             if (notification === "ALL_MODULES_STARTED") {
