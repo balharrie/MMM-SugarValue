@@ -1,0 +1,5 @@
+.fa-rotate-45 {
+    -ms-transform:rotate(45deg);     /* Internet Explorer 9 */
+    -webkit-transform:rotate(45deg); /* Chrome, Safari, Opera */
+    transform:rotate(45deg);         /* Standard syntax */
+}

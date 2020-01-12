@@ -4640,6 +4640,9 @@
             "updateSecs": 300,
             "units": "mmol"
         },
+        getStyles: function () {
+            return ['sugarvalue.css'];
+        },
         message: "Loading...",
         reading: undefined,
         clockSpan: undefined,
@@ -4684,10 +4687,10 @@
                         trend.appendChild(this._createIcon("fa-arrow-right"));
                         break;
                     case DexcomTrend.FORTYFIVE_DOWN:
-                        trend.appendChild(this._createIcon("fa-arrow-right", "rotate-45"));
+                        trend.appendChild(this._createIcon("fa-arrow-right fa-rotate-45"));
                         break;
                     case DexcomTrend.FORTYFIVE_UP:
-                        trend.appendChild(this._createIcon("fa-arrow-up", "rotate-45"));
+                        trend.appendChild(this._createIcon("fa-arrow-up fa-rotate-45"));
                         break;
                     case DexcomTrend.NONE:
                         break;
@@ -4770,12 +4773,9 @@
                 this.updateDom();
             }
         },
-        _createIcon: function (className, rotate) {
+        _createIcon: function (className) {
             var icon = document.createElement("span");
             icon.className = "fa fa-fw " + className;
-            if (rotate !== undefined) {
-                icon.setAttribute("data-fa-transform", rotate);
-            }
             return icon;
         }
     });
