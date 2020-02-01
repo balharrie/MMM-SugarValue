@@ -3,3 +3,12 @@
     -webkit-transform:rotate(45deg); /* Chrome, Safari, Opera */
     transform:rotate(45deg);         /* Standard syntax */
 }
+.text-danger {
+    color: #dc3545 !important;
+}
+.text-warning {
+    color: #ffc107 !important;
+}
+.text-success {
+    color: #28a745 !important;
+}

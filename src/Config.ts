@@ -7,4 +7,6 @@ export interface Config {
     username: string;
     password: string;
     units: string;
+    lowlimit?: number;
+    highlimit?: number;
 }

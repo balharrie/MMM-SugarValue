@@ -65,24 +65,38 @@ Module.register("MMM-SugarValue", {
             const units: HTMLSpanElement = document.createElement("span");
             sugar.className = "bright medium";
             units.className = "dimmed small";
+            let sugarValue: number;
             if (this.config.units === "mg") {
+                sugarValue = this.reading.sugarMg;
                 sugar.innerText = this.reading.sugarMg.toString();
                 units.innerText = " mg/dL";
             } else {
+                sugarValue = this.reading.sugarMmol;
                 sugar.innerText = this.reading.sugarMmol.toString();
                 units.innerText = " mmol/L";
             }
 
+            if (this.config.lowlimit !== undefined && sugarValue <= this.config.lowlimit) {
+                sugar.className += " text-danger";
+            }
+
+            if (this.config.highlimit !== undefined && sugarValue >= this.config.highlimit) {
+                sugar.className += " text-warning";
+            }
+
             const trend: HTMLSpanElement = document.createElement("span");
+            trend.className = "small";
 
             switch (this.reading.trend) {
                 case DexcomTrend.DOUBLE_DOWN:
                     trend.appendChild(this._createIcon("fa-arrow-down"));
                     trend.appendChild(this._createIcon("fa-arrow-down"));
+                    trend.className += " text-warning";
                     break;
                 case DexcomTrend.DOUBLE_UP:
                     trend.appendChild(this._createIcon("fa-arrow-up"));
                     trend.appendChild(this._createIcon("fa-arrow-up"));
+                    trend.className += " text-warning";
                     break;
                 case DexcomTrend.FLAT:
                     trend.appendChild(this._createIcon("fa-arrow-right"));
@@ -96,10 +110,10 @@ Module.register("MMM-SugarValue", {
                 case DexcomTrend.NONE:
                     break;
                 case DexcomTrend.NOT_COMPUTABLE:
-                    trend.className += "fa-question-circle";
+                    trend.appendChild(this._createIcon("fa-question-circle"));
                     break;
                 case DexcomTrend.RATE_OUT_OF_RANGE:
-                    trend.className += "fa-exclamation-triangle";
+                    trend.appendChild(this._createIcon("fa-exclamation-triangle"));
                     break;
                 case DexcomTrend.SINGLE_DOWN:
                     trend.appendChild(this._createIcon("fa-arrow-down"));
