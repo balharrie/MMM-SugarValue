@@ -19,9 +19,9 @@
         "clean-node": "del-cli --force node_modules"
     },
     "dependencies": {
-        "request": "2.88.0",
-        "qs": "6.9.1",
-        "moment": "2.24.0"
+        "request": "2.88.2",
+        "qs": "6.9.4",
+        "moment": "2.27.0"
     },
     "devDependencies": {
         "@types/request": "2.48.4",

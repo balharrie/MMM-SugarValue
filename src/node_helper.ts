@@ -1,5 +1,6 @@
 import { Config } from "./Config";
-import { DexcomApi, DexcomApiResponse } from "./dexcom";
+import { DexcomApi } from "./dexcom/DexcomApi";
+import { DexcomApiResponse } from "./dexcom/DexcomApiResponse";
 import { DexcomApiFactory } from "./dexcom/DexcomApiImpl";
 import { ModuleNotification } from "./ModuleNotification";
 import { NotificationPayload } from "./NotificationPayload";

@@ -34,8 +34,8 @@ declare var Module: MagicMirrorModule;
 
 Module.register("MMM-SugarValue", {
     defaults: {
-        "usServerUrl": "https://share1.dexcom.com",
-        "euServerUrl": "https://shareous1.dexcom.com",
+        "usServerUrl": "share1.dexcom.com",
+        "euServerUrl": "shareous1.dexcom.com",
         "server": "us",
         "updateSecs": 300,
         "units": "mmol"

@@ -1,10 +1,11 @@
 (function (global, factory) {
-    typeof exports === 'object' && typeof module !== 'undefined' ? factory(require('request'), require('qs')) :
-    typeof define === 'function' && define.amd ? define(['request', 'qs'], factory) :
-    (global = global || self, factory(global.request, global.qs));
-}(this, (function (request, qs) { 'use strict';
+    typeof exports === 'object' && typeof module !== 'undefined' ? factory(require('request'), require('qs'), require('https')) :
+    typeof define === 'function' && define.amd ? define(['request', 'qs', 'https'], factory) :
+    (global = global || self, factory(global.request, global.qs, global.https));
+}(this, (function (request, qs, https) { 'use strict';
 
     request = request && request.hasOwnProperty('default') ? request['default'] : request;
+    https = https && https.hasOwnProperty('default') ? https['default'] : https;
 
     var DexcomReadingImpl = /** @class */ (function () {
         function DexcomReadingImpl(raw) {
@@ -25,9 +26,16 @@
         }
         DexcomApiImpl.prototype.doPost = function (uri, body, callback) {
             var bodyAsString = body == undefined ? "" : JSON.stringify(body);
+            console.log("POST", uri, bodyAsString);
             return request({
-                uri: uri,
+                uri: "https://" + uri,
                 method: "POST",
+                agent: new https.Agent({
+                    host: this._server,
+                    port: 443,
+                    path: '/',
+                    rejectUnauthorized: false
+                }),
                 headers: {
                     'User-Agent': DexcomApiImpl.AGENT,
                     'Content-Type': DexcomApiImpl.CONTENT_TYPE,
@@ -54,6 +62,7 @@
         DexcomApiImpl.prototype.fetchData = function (callback, maxCount, minutes) {
             var _this = this;
             this.login(function (error, response, body) {
+                console.log(error);
                 if (error != null || response.statusCode !== 200) {
                     callback({
                         error: {

@@ -1,5 +1,6 @@
 import request from "request";
 import * as qs from "qs";
+import https from "https";
 import { DexcomApi } from "./DexcomApi";
 import { DexcomApiCallback } from "./DexcomApiCallback";
 import { DexcomRawReading } from "./DexcomRawReading";
@@ -35,10 +36,17 @@ class DexcomApiImpl implements DexcomApi {
 
     private doPost(uri: string, body: any, callback?: request.RequestCallback): request.Request {
         let bodyAsString: string = body == undefined ? "" : JSON.stringify(body);
+        console.log("POST", uri, bodyAsString);
         return request(
             {
-                uri: uri,
+                uri: "https://" + uri,
                 method: "POST",
+                agent: new https.Agent({
+                    host: this._server,
+                    port: 443,
+                    path: '/',
+                    rejectUnauthorized: false
+                  }),
                 headers: {
                     'User-Agent': DexcomApiImpl.AGENT,
                     'Content-Type': DexcomApiImpl.CONTENT_TYPE,
@@ -79,6 +87,7 @@ class DexcomApiImpl implements DexcomApi {
 
     public fetchData(callback: DexcomApiCallback, maxCount?: number, minutes?: number): void {
         this.login((error: any, response: request.Response, body: any) => {
+            console.log(error);
             if (error != null || response.statusCode !== 200) {
                 callback({
                     error: {
