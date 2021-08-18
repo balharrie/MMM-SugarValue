@@ -67,7 +67,7 @@
                     callback({
                         error: {
                             statusCode: response == undefined ? -1 : response.statusCode,
-                            message: "Failed to login"
+                            message: "Login fail: " + (error == undefined ? "" : error)
                         },
                         readings: []
                     });
@@ -78,8 +78,8 @@
                         if (error != null || response.statusCode !== 200) {
                             callback({
                                 error: {
-                                    statusCode: response == undefined ? -1 : response.statusCode,
-                                    message: "Failed to fetch readings"
+                                    statusCode: response == undefined ? error : response.statusCode,
+                                    message: "Fetch readings fail: " + (error == undefined ? "" : error)
                                 },
                                 readings: []
                             });
