@@ -48,6 +48,7 @@ Module.register("MMM-SugarValue", {
     clockSpan: undefined,
     getDom(): HTMLDivElement {
         const wrapper: HTMLDivElement = document.createElement("div");
+        wrapper.className = "mmm-sugar-value";
         if (this.message !== undefined) {
             wrapper.innerText = this.message;
         } else if (this.reading == undefined) {

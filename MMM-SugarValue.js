@@ -5710,6 +5710,7 @@
         clockSpan: undefined,
         getDom: function () {
             var wrapper = document.createElement("div");
+            wrapper.className = "mmm-sugar-value";
             if (this.message !== undefined) {
                 wrapper.innerText = this.message;
             }
