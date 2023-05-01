@@ -21,7 +21,7 @@
     "dependencies": {
         "request": "2.88.2",
         "qs": "6.9.4",
-        "moment": "2.27.0"
+        "moment": "2.29.4"
     },
     "devDependencies": {
         "@types/request": "2.48.4",
