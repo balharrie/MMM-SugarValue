@@ -7,14 +7,53 @@
     request = request && request.hasOwnProperty('default') ? request['default'] : request;
     https = https && https.hasOwnProperty('default') ? https['default'] : https;
 
+    var DexcomTrend;
+    (function (DexcomTrend) {
+        DexcomTrend[DexcomTrend["NONE"] = 0] = "NONE";
+        DexcomTrend[DexcomTrend["DOUBLE_UP"] = 1] = "DOUBLE_UP";
+        DexcomTrend[DexcomTrend["SINGLE_UP"] = 2] = "SINGLE_UP";
+        DexcomTrend[DexcomTrend["FORTYFIVE_UP"] = 3] = "FORTYFIVE_UP";
+        DexcomTrend[DexcomTrend["FLAT"] = 4] = "FLAT";
+        DexcomTrend[DexcomTrend["FORTYFIVE_DOWN"] = 5] = "FORTYFIVE_DOWN";
+        DexcomTrend[DexcomTrend["SINGLE_DOWN"] = 6] = "SINGLE_DOWN";
+        DexcomTrend[DexcomTrend["DOUBLE_DOWN"] = 7] = "DOUBLE_DOWN";
+        DexcomTrend[DexcomTrend["NOT_COMPUTABLE"] = 8] = "NOT_COMPUTABLE";
+        DexcomTrend[DexcomTrend["RATE_OUT_OF_RANGE"] = 9] = "RATE_OUT_OF_RANGE";
+    })(DexcomTrend || (DexcomTrend = {}));
+
+    var TREND_ENUM_MAP = {
+        "0": DexcomTrend.NONE,
+        "1": DexcomTrend.DOUBLE_UP,
+        "2": DexcomTrend.SINGLE_UP,
+        "3": DexcomTrend.FORTYFIVE_UP,
+        "4": DexcomTrend.FLAT,
+        "5": DexcomTrend.FORTYFIVE_DOWN,
+        "6": DexcomTrend.SINGLE_DOWN,
+        "7": DexcomTrend.DOUBLE_DOWN,
+        "8": DexcomTrend.NOT_COMPUTABLE,
+        "9": DexcomTrend.RATE_OUT_OF_RANGE,
+        'NONE': DexcomTrend.NONE,
+        'DOUBLEUP': DexcomTrend.DOUBLE_UP,
+        'SINGLEUP': DexcomTrend.SINGLE_UP,
+        'FORTYFIVEUP': DexcomTrend.FORTYFIVE_UP,
+        'FLAT': DexcomTrend.FLAT,
+        'FORTYFIVEDOWN': DexcomTrend.FORTYFIVE_DOWN,
+        'SINGLEDOWN': DexcomTrend.SINGLE_DOWN,
+        'DOUBLEDOWN': DexcomTrend.DOUBLE_DOWN,
+        'NOT COMPUTABLE': DexcomTrend.NOT_COMPUTABLE,
+        'RATE OUT OF RANGE': DexcomTrend.RATE_OUT_OF_RANGE
+    };
     var DexcomReadingImpl = /** @class */ (function () {
         function DexcomReadingImpl(raw) {
             var dateMatch = raw.WT.match(/\((.*)\)/);
             this.date = dateMatch === null || dateMatch.length == 0 ? undefined : new Date(parseInt(dateMatch[1]));
             this.sugarMg = raw.Value;
             this.sugarMmol = Math.floor(10 * (raw.Value / 18.0)) / 10;
-            this.trend = raw.Trend;
+            this.trend = DexcomReadingImpl.convertTrend(raw.Trend);
         }
+        DexcomReadingImpl.convertTrend = function (trend) {
+            return trend === undefined ? DexcomTrend.NONE : TREND_ENUM_MAP[trend.toString().toUpperCase()];
+        };
         return DexcomReadingImpl;
     }());
 
