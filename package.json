@@ -20,7 +20,7 @@
     },
     "dependencies": {
         "request": "2.88.2",
-        "qs": "6.9.4",
+        "qs": "6.9.7",
         "moment": "2.29.4"
     },
     "devDependencies": {
