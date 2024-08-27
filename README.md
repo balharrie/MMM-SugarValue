@@ -54,4 +54,4 @@ If you want to build the module yourself use:
 
 ### Which password should I use?
 
-Use the account for the Dexcom Share App. The moudle uses the same network services as the share app.
+Use the account for the Dexcom Share App. The module uses the same network services as the share app.
