@@ -45,3 +45,13 @@ If you want to build the module yourself use:
 
     npm install
     npm run build
+
+## FAQ
+
+### I'm a Canadian user, which server should I use?
+
+"eu" seems to be more successfull than "us" for users in Canada.
+
+### Which password should I use?
+
+Use the account for the Dexcom Share App. The moudle uses the same network services as the share app.
