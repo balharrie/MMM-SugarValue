@@ -36,12 +36,50 @@ module.exports = NodeHelper.create({
     //     stopped = true;
     // },
     fetchData(api: DexcomApi, updateSecs: number) {
-        api.fetchData((response: DexcomApiResponse) => {
-            this._sendSocketNotification(ModuleNotification.DATA, { apiResponse: response });
-            setTimeout(() => {
-                this.fetchData(api, updateSecs);
-            }, updateSecs * 1000);
-        }, 1);
+        let callbackInvoked = false;
+        const timeoutMs = 30000; // 30 second timeout for API call
+
+        // Set timeout to detect if API call gets stuck
+        const timeoutId = setTimeout(() => {
+            if (!callbackInvoked) {
+                console.error("Dexcom API call timed out after", timeoutMs, "ms");
+                this._sendSocketNotification(ModuleNotification.DATA, {
+                    apiResponse: {
+                        error: {
+                            statusCode: -1,
+                            message: "API request timed out after " + (timeoutMs / 1000) + " seconds"
+                        },
+                        readings: []
+                    }
+                });
+            }
+        }, timeoutMs);
+
+        // Attempt to fetch data
+        try {
+            api.fetchData((response: DexcomApiResponse) => {
+                callbackInvoked = true;
+                clearTimeout(timeoutId);
+                this._sendSocketNotification(ModuleNotification.DATA, { apiResponse: response });
+            }, 1);
+        } catch (error) {
+            console.error("Exception in fetchData:", error);
+            clearTimeout(timeoutId);
+            this._sendSocketNotification(ModuleNotification.DATA, {
+                apiResponse: {
+                    error: {
+                        statusCode: -1,
+                        message: "Exception in fetchData: " + error
+                    },
+                    readings: []
+                }
+            });
+        }
+
+        // Always schedule next poll, regardless of success/failure
+        setTimeout(() => {
+            this.fetchData(api, updateSecs);
+        }, updateSecs * 1000);
     },
     _sendSocketNotification(notification: ModuleNotification, payload: NotificationPayload): void {
         console.log("Sending", notification, payload);

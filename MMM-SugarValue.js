@@ -34,7 +34,7 @@
 
     var moment = createCommonjsModule(function (module, exports) {
     (function (global, factory) {
-         module.exports = factory() ;
+        module.exports = factory() ;
     }(commonjsGlobal, (function () {
         var hookCallback;
 
@@ -3235,8 +3235,7 @@
                 i;
             for (i = 0; i < len; i++) {
                 if (
-                    (dontConvert && array1[i] !== array2[i]) ||
-                    (!dontConvert && toInt(array1[i]) !== toInt(array2[i]))
+                    (toInt(array1[i]) !== toInt(array2[i]))
                 ) {
                     diffs++;
                 }
@@ -5872,4 +5871,4 @@
         }
     });
 
-}());
+})();

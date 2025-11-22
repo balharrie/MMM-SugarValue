@@ -1,11 +1,27 @@
 (function (global, factory) {
     typeof exports === 'object' && typeof module !== 'undefined' ? factory(require('request'), require('qs'), require('https')) :
     typeof define === 'function' && define.amd ? define(['request', 'qs', 'https'], factory) :
-    (global = global || self, factory(global.request, global.qs, global.https));
-}(this, (function (request, qs, https) { 'use strict';
+    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.request, global.qs, global.https));
+})(this, (function (request, qs, https) { 'use strict';
 
-    request = request && request.hasOwnProperty('default') ? request['default'] : request;
-    https = https && https.hasOwnProperty('default') ? https['default'] : https;
+    function _interopNamespaceDefault(e) {
+        var n = Object.create(null);
+        if (e) {
+            Object.keys(e).forEach(function (k) {
+                if (k !== 'default') {
+                    var d = Object.getOwnPropertyDescriptor(e, k);
+                    Object.defineProperty(n, k, d.get ? d : {
+                        enumerable: true,
+                        get: function () { return e[k]; }
+                    });
+                }
+            });
+        }
+        n.default = e;
+        return Object.freeze(n);
+    }
+
+    var qs__namespace = /*#__PURE__*/_interopNamespaceDefault(qs);
 
     var DexcomTrend;
     (function (DexcomTrend) {
@@ -69,6 +85,7 @@
             return request({
                 uri: "https://" + uri,
                 method: "POST",
+                timeout: 20000,
                 agent: new https.Agent({
                     host: this._server,
                     port: 443,
@@ -92,7 +109,7 @@
             }, callback);
         };
         DexcomApiImpl.prototype.fetchLatest = function (sessionId, maxCount, minutes, callback) {
-            return this.doPost(this._server + "/ShareWebServices/Services/Publisher/ReadPublisherLatestGlucoseValues?" + qs.stringify({
+            return this.doPost(this._server + "/ShareWebServices/Services/Publisher/ReadPublisherLatestGlucoseValues?" + qs__namespace.stringify({
                 sessionID: sessionId,
                 minutes: minutes === undefined ? 1440 : Math.max(1, minutes),
                 maxCount: maxCount === undefined ? 1 : Math.max(1, maxCount),
@@ -114,11 +131,11 @@
                 else {
                     var sessionId = body.substring(1, body.length - 1);
                     _this.fetchLatest(sessionId, maxCount, minutes, function (_error, _response, body) {
-                        if (error != null || response.statusCode !== 200) {
+                        if (_error != null || _response.statusCode !== 200) {
                             callback({
                                 error: {
-                                    statusCode: response == undefined ? error : response.statusCode,
-                                    message: "Fetch readings fail: " + (error == undefined ? "" : error)
+                                    statusCode: _response == undefined ? -1 : _response.statusCode,
+                                    message: "Fetch readings fail: " + (_error == undefined ? "" : _error)
                                 },
                                 readings: []
                             });
@@ -172,12 +189,48 @@
         // },
         fetchData: function (api, updateSecs) {
             var _this = this;
-            api.fetchData(function (response) {
-                _this._sendSocketNotification(ModuleNotification.DATA, { apiResponse: response });
-                setTimeout(function () {
-                    _this.fetchData(api, updateSecs);
-                }, updateSecs * 1000);
-            }, 1);
+            var callbackInvoked = false;
+            var timeoutMs = 30000; // 30 second timeout for API call
+            // Set timeout to detect if API call gets stuck
+            var timeoutId = setTimeout(function () {
+                if (!callbackInvoked) {
+                    console.error("Dexcom API call timed out after", timeoutMs, "ms");
+                    _this._sendSocketNotification(ModuleNotification.DATA, {
+                        apiResponse: {
+                            error: {
+                                statusCode: -1,
+                                message: "API request timed out after " + (timeoutMs / 1000) + " seconds"
+                            },
+                            readings: []
+                        }
+                    });
+                }
+            }, timeoutMs);
+            // Attempt to fetch data
+            try {
+                api.fetchData(function (response) {
+                    callbackInvoked = true;
+                    clearTimeout(timeoutId);
+                    _this._sendSocketNotification(ModuleNotification.DATA, { apiResponse: response });
+                }, 1);
+            }
+            catch (error) {
+                console.error("Exception in fetchData:", error);
+                clearTimeout(timeoutId);
+                this._sendSocketNotification(ModuleNotification.DATA, {
+                    apiResponse: {
+                        error: {
+                            statusCode: -1,
+                            message: "Exception in fetchData: " + error
+                        },
+                        readings: []
+                    }
+                });
+            }
+            // Always schedule next poll, regardless of success/failure
+            setTimeout(function () {
+                _this.fetchData(api, updateSecs);
+            }, updateSecs * 1000);
         },
         _sendSocketNotification: function (notification, payload) {
             console.log("Sending", notification, payload);
@@ -190,4 +243,4 @@
         },
     });
 
-})));
+}));

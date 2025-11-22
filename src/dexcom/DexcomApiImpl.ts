@@ -41,6 +41,7 @@ class DexcomApiImpl implements DexcomApi {
             {
                 uri: "https://" + uri,
                 method: "POST",
+                timeout: 20000, // 20 second timeout for network requests
                 agent: new https.Agent({
                     host: this._server,
                     port: 443,
@@ -99,11 +100,11 @@ class DexcomApiImpl implements DexcomApi {
             } else {
                 let sessionId: string = (body as string).substring(1, (body as string).length - 1)
                 this.fetchLatest(sessionId, maxCount, minutes, (_error: any, _response: request.Response, body: any) => {
-                    if (error != null || response.statusCode !== 200) {
+                    if (_error != null || _response.statusCode !== 200) {
                         callback({
                             error: {
-                                statusCode: response == undefined ? error : response.statusCode,
-                                message: "Fetch readings fail: "+ (error == undefined ? "" : error)
+                                statusCode: _response == undefined ? -1 : _response.statusCode,
+                                message: "Fetch readings fail: "+ (_error == undefined ? "" : _error)
                             },
                             readings: []
                         });
