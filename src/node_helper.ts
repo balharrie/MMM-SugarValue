@@ -47,12 +47,39 @@ module.exports = NodeHelper.create({
         }
     },
     fetchData(api: DexcomApi, updateSecs: number) {
-        api.fetchData((response: DexcomApiResponse) => {
-            this._sendSocketNotification(ModuleNotification.DATA, { apiResponse: response });
-            this._timeoutHandle = setTimeout(() => {
-                this.fetchData(api, updateSecs);
-            }, updateSecs * 1000);
-        }, 1);
+        let callbackInvoked = false;
+        const timeoutMs = 30000;
+
+        const timeoutId = setTimeout(() => {
+            if (!callbackInvoked) {
+                this._sendSocketNotification(ModuleNotification.DATA, {
+                    apiResponse: {
+                        error: { statusCode: -1, message: "API request timed out after " + (timeoutMs / 1000) + " seconds" },
+                        readings: []
+                    }
+                });
+            }
+        }, timeoutMs);
+
+        try {
+            api.fetchData((response: DexcomApiResponse) => {
+                callbackInvoked = true;
+                clearTimeout(timeoutId);
+                this._sendSocketNotification(ModuleNotification.DATA, { apiResponse: response });
+            }, 1);
+        } catch (error) {
+            clearTimeout(timeoutId);
+            this._sendSocketNotification(ModuleNotification.DATA, {
+                apiResponse: {
+                    error: { statusCode: -1, message: "Exception in fetchData: " + error },
+                    readings: []
+                }
+            });
+        }
+
+        this._timeoutHandle = setTimeout(() => {
+            this.fetchData(api, updateSecs);
+        }, updateSecs * 1000);
     },
     _sendSocketNotification(notification: ModuleNotification, payload: NotificationPayload): void {
         if (this.sendSocketNotification !== undefined) {

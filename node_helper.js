@@ -84,6 +84,7 @@
             return request({
                 uri: "https://" + uri,
                 method: "POST",
+                timeout: 20000,
                 agent: new https.Agent({
                     host: this._server,
                     port: 443,
@@ -128,11 +129,11 @@
                 else {
                     var sessionId = body.substring(1, body.length - 1);
                     _this.fetchLatest(sessionId, maxCount, minutes, function (_error, _response, body) {
-                        if (error != null || response.statusCode !== 200) {
+                        if (_error != null || _response.statusCode !== 200) {
                             callback({
                                 error: {
-                                    statusCode: response == undefined ? error : response.statusCode,
-                                    message: "Fetch readings fail: " + (error == undefined ? "" : error)
+                                    statusCode: _response == undefined ? -1 : _response.statusCode,
+                                    message: "Fetch readings fail: " + (_error == undefined ? "" : _error)
                                 },
                                 readings: []
                             });
@@ -195,12 +196,37 @@
         },
         fetchData: function (api, updateSecs) {
             var _this = this;
-            api.fetchData(function (response) {
-                _this._sendSocketNotification(ModuleNotification.DATA, { apiResponse: response });
-                _this._timeoutHandle = setTimeout(function () {
-                    _this.fetchData(api, updateSecs);
-                }, updateSecs * 1000);
-            }, 1);
+            var callbackInvoked = false;
+            var timeoutMs = 30000;
+            var timeoutId = setTimeout(function () {
+                if (!callbackInvoked) {
+                    _this._sendSocketNotification(ModuleNotification.DATA, {
+                        apiResponse: {
+                            error: { statusCode: -1, message: "API request timed out after " + (timeoutMs / 1000) + " seconds" },
+                            readings: []
+                        }
+                    });
+                }
+            }, timeoutMs);
+            try {
+                api.fetchData(function (response) {
+                    callbackInvoked = true;
+                    clearTimeout(timeoutId);
+                    _this._sendSocketNotification(ModuleNotification.DATA, { apiResponse: response });
+                }, 1);
+            }
+            catch (error) {
+                clearTimeout(timeoutId);
+                this._sendSocketNotification(ModuleNotification.DATA, {
+                    apiResponse: {
+                        error: { statusCode: -1, message: "Exception in fetchData: " + error },
+                        readings: []
+                    }
+                });
+            }
+            this._timeoutHandle = setTimeout(function () {
+                _this.fetchData(api, updateSecs);
+            }, updateSecs * 1000);
         },
         _sendSocketNotification: function (notification, payload) {
             if (this.sendSocketNotification !== undefined) {
