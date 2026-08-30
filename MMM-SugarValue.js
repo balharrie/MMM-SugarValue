@@ -5823,6 +5823,12 @@
                 }
             }
             this._updateDom();
+            var self = this;
+            self.socket().socket.on("connect", function () {
+                if (self.config !== undefined) {
+                    self._sendSocketNotification(ModuleNotification.CONFIG, { config: self.config });
+                }
+            });
             setInterval(function () {
                 if (_this.clockSpan !== undefined && _this.reading !== undefined && _this.reading.date !== undefined) {
                     _this.clockSpan.textContent = moment(_this.reading.date).fromNow();

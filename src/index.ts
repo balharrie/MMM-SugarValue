@@ -146,6 +146,12 @@ Module.register("MMM-SugarValue", {
             }
         }
         this._updateDom();
+        const self = this as any;
+        self.socket().socket.on("connect", () => {
+            if (self.config !== undefined) {
+                self._sendSocketNotification(ModuleNotification.CONFIG, { config: self.config });
+            }
+        });
         setInterval(() => {
             if (this.clockSpan !== undefined && this.reading !== undefined && this.reading.date !== undefined) {
                 this.clockSpan.textContent = moment(this.reading.date).fromNow();
