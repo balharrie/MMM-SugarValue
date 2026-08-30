@@ -19,19 +19,20 @@
         "clean-node": "del-cli --force node_modules"
     },
     "dependencies": {
-        "request": "2.88.2",
+        "moment": "2.29.4",
         "qs": "6.9.7",
-        "moment": "2.29.4"
+        "request": "2.88.2",
+        "rollout": "^0.1.0"
     },
     "devDependencies": {
-        "@types/request": "2.48.4",
         "@types/qs": "6.9.0",
-        "rollup": "4.22.4",
+        "@types/request": "2.48.4",
+        "del-cli": "3.0.1",
+        "rollup": "^4.52.4",
         "rollup-plugin-commonjs": "10.1.0",
         "rollup-plugin-node-resolve": "5.2.0",
         "rollup-plugin-typescript2": "0.25.3",
         "tslib": "1.10.0",
-        "typescript": "3.4.3",
-        "del-cli": "3.0.1"
+        "typescript": "3.4.3"
     }
 }
