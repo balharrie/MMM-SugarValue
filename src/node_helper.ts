@@ -44,7 +44,6 @@ module.exports = NodeHelper.create({
         }, 1);
     },
     _sendSocketNotification(notification: ModuleNotification, payload: NotificationPayload): void {
-        console.log("Sending", notification, payload);
         if (this.sendSocketNotification !== undefined) {
             this.sendSocketNotification(notification, payload);
         } else {

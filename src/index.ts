@@ -134,7 +134,6 @@ Module.register("MMM-SugarValue", {
         return wrapper;
     },
     start():void {
-        console.log("Starting");
         const config: Config | undefined = this.config;
         if (config == undefined) {
             this.message = "Configuration is not defined";
@@ -159,7 +158,6 @@ Module.register("MMM-SugarValue", {
         }
     },
     socketNotificationReceived(notification: ModuleNotification, payload: NotificationPayload): void {
-        console.log(notification, payload);
         if (notification === ModuleNotification.DATA) {
             const apiResponse: DexcomApiResponse | undefined = payload.apiResponse;
             if (apiResponse !== undefined) {

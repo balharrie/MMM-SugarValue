@@ -1,11 +1,27 @@
 (function (global, factory) {
     typeof exports === 'object' && typeof module !== 'undefined' ? factory(require('request'), require('qs'), require('https')) :
     typeof define === 'function' && define.amd ? define(['request', 'qs', 'https'], factory) :
-    (global = global || self, factory(global.request, global.qs, global.https));
-}(this, (function (request, qs, https) { 'use strict';
+    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.request, global.qs, global.https));
+})(this, (function (request, qs, https) { 'use strict';
 
-    request = request && request.hasOwnProperty('default') ? request['default'] : request;
-    https = https && https.hasOwnProperty('default') ? https['default'] : https;
+    function _interopNamespaceDefault(e) {
+        var n = Object.create(null);
+        if (e) {
+            Object.keys(e).forEach(function (k) {
+                if (k !== 'default') {
+                    var d = Object.getOwnPropertyDescriptor(e, k);
+                    Object.defineProperty(n, k, d.get ? d : {
+                        enumerable: true,
+                        get: function () { return e[k]; }
+                    });
+                }
+            });
+        }
+        n.default = e;
+        return Object.freeze(n);
+    }
+
+    var qs__namespace = /*#__PURE__*/_interopNamespaceDefault(qs);
 
     var DexcomTrend;
     (function (DexcomTrend) {
@@ -65,7 +81,6 @@
         }
         DexcomApiImpl.prototype.doPost = function (uri, body, callback) {
             var bodyAsString = body == undefined ? "" : JSON.stringify(body);
-            console.log("POST", uri, bodyAsString);
             return request({
                 uri: "https://" + uri,
                 method: "POST",
@@ -92,7 +107,7 @@
             }, callback);
         };
         DexcomApiImpl.prototype.fetchLatest = function (sessionId, maxCount, minutes, callback) {
-            return this.doPost(this._server + "/ShareWebServices/Services/Publisher/ReadPublisherLatestGlucoseValues?" + qs.stringify({
+            return this.doPost(this._server + "/ShareWebServices/Services/Publisher/ReadPublisherLatestGlucoseValues?" + qs__namespace.stringify({
                 sessionID: sessionId,
                 minutes: minutes === undefined ? 1440 : Math.max(1, minutes),
                 maxCount: maxCount === undefined ? 1 : Math.max(1, maxCount),
@@ -101,7 +116,6 @@
         DexcomApiImpl.prototype.fetchData = function (callback, maxCount, minutes) {
             var _this = this;
             this.login(function (error, response, body) {
-                console.log(error);
                 if (error != null || response.statusCode !== 200) {
                     callback({
                         error: {
@@ -180,7 +194,6 @@
             }, 1);
         },
         _sendSocketNotification: function (notification, payload) {
-            console.log("Sending", notification, payload);
             if (this.sendSocketNotification !== undefined) {
                 this.sendSocketNotification(notification, payload);
             }
@@ -190,4 +203,4 @@
         },
     });
 
-})));
+}));
