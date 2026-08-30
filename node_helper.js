@@ -167,28 +167,37 @@
 
     var NodeHelper = require("node_helper");
     module.exports = NodeHelper.create({
+        _started: false,
+        _timeoutHandle: null,
         socketNotificationReceived: function (notification, payload) {
             var _this = this;
             switch (notification) {
                 case ModuleNotification.CONFIG:
+                    if (this._started)
+                        return;
+                    this._started = true;
                     var config_1 = payload.config;
                     if (config_1 !== undefined) {
                         var api_1 = DexcomApiFactory(config_1.serverUrl, config_1.username, config_1.password);
-                        setTimeout(function () {
+                        this._timeoutHandle = setTimeout(function () {
                             _this.fetchData(api_1, config_1.updateSecs);
                         }, 500);
                     }
                     break;
             }
         },
-        // stop: () => {
-        //     stopped = true;
-        // },
+        stop: function () {
+            this._started = false;
+            if (this._timeoutHandle !== null) {
+                clearTimeout(this._timeoutHandle);
+                this._timeoutHandle = null;
+            }
+        },
         fetchData: function (api, updateSecs) {
             var _this = this;
             api.fetchData(function (response) {
                 _this._sendSocketNotification(ModuleNotification.DATA, { apiResponse: response });
-                setTimeout(function () {
+                _this._timeoutHandle = setTimeout(function () {
                     _this.fetchData(api, updateSecs);
                 }, updateSecs * 1000);
             }, 1);
