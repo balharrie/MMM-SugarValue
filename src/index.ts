@@ -134,7 +134,6 @@ Module.register("MMM-SugarValue", {
         return wrapper;
     },
     start():void {
-        console.log("Starting");
         const config: Config | undefined = this.config;
         if (config == undefined) {
             this.message = "Configuration is not defined";
@@ -147,6 +146,12 @@ Module.register("MMM-SugarValue", {
             }
         }
         this._updateDom();
+        const self = this as any;
+        self.socket().socket.on("connect", () => {
+            if (self.config !== undefined) {
+                self._sendSocketNotification(ModuleNotification.CONFIG, { config: self.config });
+            }
+        });
         setInterval(() => {
             if (this.clockSpan !== undefined && this.reading !== undefined && this.reading.date !== undefined) {
                 this.clockSpan.textContent = moment(this.reading.date).fromNow();
@@ -159,7 +164,6 @@ Module.register("MMM-SugarValue", {
         }
     },
     socketNotificationReceived(notification: ModuleNotification, payload: NotificationPayload): void {
-        console.log(notification, payload);
         if (notification === ModuleNotification.DATA) {
             const apiResponse: DexcomApiResponse | undefined = payload.apiResponse;
             if (apiResponse !== undefined) {

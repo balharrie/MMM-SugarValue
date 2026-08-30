@@ -4433,7 +4433,7 @@
         }
 
         function localeErasConvertYear(era, year) {
-            var dir = era.since <= era.until ? +1 : -1;
+            var dir = era.since <= era.until ? 1 : -1;
             if (year === undefined) {
                 return hooks(era.since).year();
             } else {
@@ -4508,7 +4508,7 @@
                 val,
                 eras = this.localeData().eras();
             for (i = 0, l = eras.length; i < l; ++i) {
-                dir = eras[i].since <= eras[i].until ? +1 : -1;
+                dir = eras[i].since <= eras[i].until ? 1 : -1;
 
                 // truncate time
                 val = this.clone().startOf('day').valueOf();
@@ -5809,7 +5809,6 @@
         },
         start: function () {
             var _this = this;
-            console.log("Starting");
             var config = this.config;
             if (config == undefined) {
                 this.message = "Configuration is not defined";
@@ -5824,6 +5823,12 @@
                 }
             }
             this._updateDom();
+            var self = this;
+            self.socket().socket.on("connect", function () {
+                if (self.config !== undefined) {
+                    self._sendSocketNotification(ModuleNotification.CONFIG, { config: self.config });
+                }
+            });
             setInterval(function () {
                 if (_this.clockSpan !== undefined && _this.reading !== undefined && _this.reading.date !== undefined) {
                     _this.clockSpan.textContent = moment(_this.reading.date).fromNow();
@@ -5836,7 +5841,6 @@
             }
         },
         socketNotificationReceived: function (notification, payload) {
-            console.log(notification, payload);
             if (notification === ModuleNotification.DATA) {
                 var apiResponse = payload.apiResponse;
                 if (apiResponse !== undefined) {

@@ -81,7 +81,6 @@
         }
         DexcomApiImpl.prototype.doPost = function (uri, body, callback) {
             var bodyAsString = body == undefined ? "" : JSON.stringify(body);
-            console.log("POST", uri, bodyAsString);
             return request({
                 uri: "https://" + uri,
                 method: "POST",
@@ -118,7 +117,6 @@
         DexcomApiImpl.prototype.fetchData = function (callback, maxCount, minutes) {
             var _this = this;
             this.login(function (error, response, body) {
-                console.log(error);
                 if (error != null || response.statusCode !== 200) {
                     callback({
                         error: {
@@ -170,43 +168,46 @@
 
     var NodeHelper = require("node_helper");
     module.exports = NodeHelper.create({
+        _started: false,
+        _timeoutHandle: null,
         socketNotificationReceived: function (notification, payload) {
             var _this = this;
             switch (notification) {
                 case ModuleNotification.CONFIG:
+                    if (this._started)
+                        return;
+                    this._started = true;
                     var config_1 = payload.config;
                     if (config_1 !== undefined) {
                         var api_1 = DexcomApiFactory(config_1.serverUrl, config_1.username, config_1.password);
-                        setTimeout(function () {
+                        this._timeoutHandle = setTimeout(function () {
                             _this.fetchData(api_1, config_1.updateSecs);
                         }, 500);
                     }
                     break;
             }
         },
-        // stop: () => {
-        //     stopped = true;
-        // },
+        stop: function () {
+            this._started = false;
+            if (this._timeoutHandle !== null) {
+                clearTimeout(this._timeoutHandle);
+                this._timeoutHandle = null;
+            }
+        },
         fetchData: function (api, updateSecs) {
             var _this = this;
             var callbackInvoked = false;
-            var timeoutMs = 30000; // 30 second timeout for API call
-            // Set timeout to detect if API call gets stuck
+            var timeoutMs = 30000;
             var timeoutId = setTimeout(function () {
                 if (!callbackInvoked) {
-                    console.error("Dexcom API call timed out after", timeoutMs, "ms");
                     _this._sendSocketNotification(ModuleNotification.DATA, {
                         apiResponse: {
-                            error: {
-                                statusCode: -1,
-                                message: "API request timed out after " + (timeoutMs / 1000) + " seconds"
-                            },
+                            error: { statusCode: -1, message: "API request timed out after " + (timeoutMs / 1000) + " seconds" },
                             readings: []
                         }
                     });
                 }
             }, timeoutMs);
-            // Attempt to fetch data
             try {
                 api.fetchData(function (response) {
                     callbackInvoked = true;
@@ -215,25 +216,19 @@
                 }, 1);
             }
             catch (error) {
-                console.error("Exception in fetchData:", error);
                 clearTimeout(timeoutId);
                 this._sendSocketNotification(ModuleNotification.DATA, {
                     apiResponse: {
-                        error: {
-                            statusCode: -1,
-                            message: "Exception in fetchData: " + error
-                        },
+                        error: { statusCode: -1, message: "Exception in fetchData: " + error },
                         readings: []
                     }
                 });
             }
-            // Always schedule next poll, regardless of success/failure
-            setTimeout(function () {
+            this._timeoutHandle = setTimeout(function () {
                 _this.fetchData(api, updateSecs);
             }, updateSecs * 1000);
         },
         _sendSocketNotification: function (notification, payload) {
-            console.log("Sending", notification, payload);
             if (this.sendSocketNotification !== undefined) {
                 this.sendSocketNotification(notification, payload);
             }

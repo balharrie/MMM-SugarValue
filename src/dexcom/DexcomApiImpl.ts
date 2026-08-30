@@ -36,7 +36,6 @@ class DexcomApiImpl implements DexcomApi {
 
     private doPost(uri: string, body: any, callback?: request.RequestCallback): request.Request {
         let bodyAsString: string = body == undefined ? "" : JSON.stringify(body);
-        console.log("POST", uri, bodyAsString);
         return request(
             {
                 uri: "https://" + uri,
@@ -88,7 +87,6 @@ class DexcomApiImpl implements DexcomApi {
 
     public fetchData(callback: DexcomApiCallback, maxCount?: number, minutes?: number): void {
         this.login((error: any, response: request.Response, body: any) => {
-            console.log(error);
             if (error != null || response.statusCode !== 200) {
                 callback({
                     error: {
