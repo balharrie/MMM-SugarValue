@@ -116,7 +116,9 @@
         };
         DexcomApiImpl.prototype.fetchData = function (callback, maxCount, minutes) {
             var _this = this;
-            this.login(function (error, response, body) {
+            // activeRequest is reassigned as the two-step chain progresses (login → fetchLatest),
+            // so the returned abort closure always cancels whichever request is currently in-flight.
+            var activeRequest = this.login(function (error, response, body) {
                 if (error != null || response.statusCode !== 200) {
                     callback({
                         error: {
@@ -128,7 +130,7 @@
                 }
                 else {
                     var sessionId = body.substring(1, body.length - 1);
-                    _this.fetchLatest(sessionId, maxCount, minutes, function (_error, _response, body) {
+                    activeRequest = _this.fetchLatest(sessionId, maxCount, minutes, function (_error, _response, body) {
                         if (_error != null || _response.statusCode !== 200) {
                             callback({
                                 error: {
@@ -148,6 +150,7 @@
                     });
                 }
             });
+            return function () { return activeRequest.abort(); };
         };
         DexcomApiImpl.APPLICATION_ID = "d89443d2-327c-4a6f-89e5-496bbb0317db";
         DexcomApiImpl.AGENT = "Dexcom Share/3.0.2.11 CFNetwork/711.2.23 Darwin/14.0.0";
@@ -170,6 +173,7 @@
     module.exports = NodeHelper.create({
         _started: false,
         _timeoutHandle: null,
+        _abortFetch: null,
         socketNotificationReceived: function (notification, payload) {
             var _this = this;
             switch (notification) {
@@ -193,40 +197,65 @@
                 clearTimeout(this._timeoutHandle);
                 this._timeoutHandle = null;
             }
+            if (this._abortFetch !== null) {
+                this._abortFetch();
+                this._abortFetch = null;
+            }
         },
         fetchData: function (api, updateSecs) {
             var _this = this;
-            var callbackInvoked = false;
+            var settled = false;
             var timeoutMs = 30000;
+            var reschedule = function () {
+                if (_this._started) {
+                    _this._timeoutHandle = setTimeout(function () { return _this.fetchData(api, updateSecs); }, updateSecs * 1000);
+                }
+            };
             var timeoutId = setTimeout(function () {
-                if (!callbackInvoked) {
+                if (!settled) {
+                    settled = true;
+                    _this._timeoutHandle = null;
+                    _this._abortFetch = null;
                     _this._sendSocketNotification(ModuleNotification.DATA, {
                         apiResponse: {
                             error: { statusCode: -1, message: "API request timed out after " + (timeoutMs / 1000) + " seconds" },
                             readings: []
                         }
                     });
+                    reschedule();
                 }
             }, timeoutMs);
+            // Track the in-flight timeout so stop() can cancel it
+            this._timeoutHandle = timeoutId;
             try {
-                api.fetchData(function (response) {
-                    callbackInvoked = true;
-                    clearTimeout(timeoutId);
-                    _this._sendSocketNotification(ModuleNotification.DATA, { apiResponse: response });
+                var abortRequest = api.fetchData(function (response) {
+                    if (!settled) {
+                        settled = true;
+                        clearTimeout(timeoutId);
+                        _this._timeoutHandle = null;
+                        _this._abortFetch = null;
+                        // Skip notification if stop() was called while the request was in-flight
+                        if (_this._started) {
+                            _this._sendSocketNotification(ModuleNotification.DATA, { apiResponse: response });
+                        }
+                        reschedule();
+                    }
                 }, 1);
+                this._abortFetch = abortRequest;
             }
             catch (error) {
+                settled = true;
                 clearTimeout(timeoutId);
+                this._timeoutHandle = null;
+                this._abortFetch = null;
                 this._sendSocketNotification(ModuleNotification.DATA, {
                     apiResponse: {
                         error: { statusCode: -1, message: "Exception in fetchData: " + error },
                         readings: []
                     }
                 });
+                reschedule();
             }
-            this._timeoutHandle = setTimeout(function () {
-                _this.fetchData(api, updateSecs);
-            }, updateSecs * 1000);
         },
         _sendSocketNotification: function (notification, payload) {
             if (this.sendSocketNotification !== undefined) {
