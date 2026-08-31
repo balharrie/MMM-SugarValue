@@ -196,37 +196,51 @@
         },
         fetchData: function (api, updateSecs) {
             var _this = this;
-            var callbackInvoked = false;
+            var settled = false;
             var timeoutMs = 30000;
+            var reschedule = function () {
+                if (_this._started) {
+                    _this._timeoutHandle = setTimeout(function () { return _this.fetchData(api, updateSecs); }, updateSecs * 1000);
+                }
+            };
             var timeoutId = setTimeout(function () {
-                if (!callbackInvoked) {
+                if (!settled) {
+                    settled = true;
+                    _this._timeoutHandle = null;
                     _this._sendSocketNotification(ModuleNotification.DATA, {
                         apiResponse: {
                             error: { statusCode: -1, message: "API request timed out after " + (timeoutMs / 1000) + " seconds" },
                             readings: []
                         }
                     });
+                    reschedule();
                 }
             }, timeoutMs);
+            // Track the in-flight timeout so stop() can cancel it
+            this._timeoutHandle = timeoutId;
             try {
                 api.fetchData(function (response) {
-                    callbackInvoked = true;
-                    clearTimeout(timeoutId);
-                    _this._sendSocketNotification(ModuleNotification.DATA, { apiResponse: response });
+                    if (!settled) {
+                        settled = true;
+                        clearTimeout(timeoutId);
+                        _this._timeoutHandle = null;
+                        _this._sendSocketNotification(ModuleNotification.DATA, { apiResponse: response });
+                        reschedule();
+                    }
                 }, 1);
             }
             catch (error) {
+                settled = true;
                 clearTimeout(timeoutId);
+                this._timeoutHandle = null;
                 this._sendSocketNotification(ModuleNotification.DATA, {
                     apiResponse: {
                         error: { statusCode: -1, message: "Exception in fetchData: " + error },
                         readings: []
                     }
                 });
+                reschedule();
             }
-            this._timeoutHandle = setTimeout(function () {
-                _this.fetchData(api, updateSecs);
-            }, updateSecs * 1000);
         },
         _sendSocketNotification: function (notification, payload) {
             if (this.sendSocketNotification !== undefined) {

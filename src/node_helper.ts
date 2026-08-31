@@ -47,39 +47,54 @@ module.exports = NodeHelper.create({
         }
     },
     fetchData(api: DexcomApi, updateSecs: number) {
-        let callbackInvoked = false;
+        let settled = false;
         const timeoutMs = 30000;
 
+        const reschedule = () => {
+            if (this._started) {
+                this._timeoutHandle = setTimeout(() => this.fetchData(api, updateSecs), updateSecs * 1000);
+            }
+        };
+
         const timeoutId = setTimeout(() => {
-            if (!callbackInvoked) {
+            if (!settled) {
+                settled = true;
+                this._timeoutHandle = null;
                 this._sendSocketNotification(ModuleNotification.DATA, {
                     apiResponse: {
                         error: { statusCode: -1, message: "API request timed out after " + (timeoutMs / 1000) + " seconds" },
                         readings: []
                     }
                 });
+                reschedule();
             }
         }, timeoutMs);
 
+        // Track the in-flight timeout so stop() can cancel it
+        this._timeoutHandle = timeoutId;
+
         try {
             api.fetchData((response: DexcomApiResponse) => {
-                callbackInvoked = true;
-                clearTimeout(timeoutId);
-                this._sendSocketNotification(ModuleNotification.DATA, { apiResponse: response });
+                if (!settled) {
+                    settled = true;
+                    clearTimeout(timeoutId);
+                    this._timeoutHandle = null;
+                    this._sendSocketNotification(ModuleNotification.DATA, { apiResponse: response });
+                    reschedule();
+                }
             }, 1);
         } catch (error) {
+            settled = true;
             clearTimeout(timeoutId);
+            this._timeoutHandle = null;
             this._sendSocketNotification(ModuleNotification.DATA, {
                 apiResponse: {
                     error: { statusCode: -1, message: "Exception in fetchData: " + error },
                     readings: []
                 }
             });
+            reschedule();
         }
-
-        this._timeoutHandle = setTimeout(() => {
-            this.fetchData(api, updateSecs);
-        }, updateSecs * 1000);
     },
     _sendSocketNotification(notification: ModuleNotification, payload: NotificationPayload): void {
         if (this.sendSocketNotification !== undefined) {
