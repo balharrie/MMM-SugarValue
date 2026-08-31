@@ -100,12 +100,35 @@
                 body: bodyAsString
             }, callback);
         };
-        DexcomApiImpl.prototype.login = function (callback) {
-            return this.doPost(this._server + "/ShareWebServices/Services/General/LoginPublisherAccountByName", {
+        DexcomApiImpl.prototype.authenticate = function (callback) {
+            return this.doPost(this._server + "/ShareWebServices/Services/General/AuthenticatePublisherAccount", {
                 "accountName": this._username,
                 "password": this._password,
                 "applicationId": DexcomApiImpl.APPLICATION_ID
-            }, callback);
+            }, function (error, response, body) {
+                if (error != null || response.statusCode !== 200) {
+                    callback(error != null ? error : new Error("AuthenticatePublisherAccount HTTP " + (response ? response.statusCode : "no-response")), null);
+                }
+                else {
+                    var accountId = body.substring(1, body.length - 1);
+                    callback(null, accountId);
+                }
+            });
+        };
+        DexcomApiImpl.prototype.loginById = function (accountId, callback) {
+            return this.doPost(this._server + "/ShareWebServices/Services/General/LoginPublisherAccountById", {
+                "accountId": accountId,
+                "password": this._password,
+                "applicationId": DexcomApiImpl.APPLICATION_ID
+            }, function (error, response, body) {
+                if (error != null || response.statusCode !== 200) {
+                    callback(error != null ? error : new Error("LoginPublisherAccountById HTTP " + (response ? response.statusCode : "no-response")), null);
+                }
+                else {
+                    var sessionId = body.substring(1, body.length - 1);
+                    callback(null, sessionId);
+                }
+            });
         };
         DexcomApiImpl.prototype.fetchLatest = function (sessionId, maxCount, minutes, callback) {
             return this.doPost(this._server + "/ShareWebServices/Services/Publisher/ReadPublisherLatestGlucoseValues?" + qs__namespace.stringify({
@@ -118,20 +141,24 @@
             var _this = this;
             // activeRequest is reassigned as the two-step chain progresses (login → fetchLatest),
             // so the returned abort closure always cancels whichever request is currently in-flight.
-            var activeRequest = this.login(function (error, response, body) {
-                if (error != null || response.statusCode !== 200) {
-                    callback({
-                        error: {
-                            statusCode: response == undefined ? -1 : response.statusCode,
-                            message: "Login fail: " + (error == undefined ? "" : error)
-                        },
-                        readings: []
-                    });
+            console.log("[MMM-SugarValue] step 1: authenticating with %s", this._server);
+            var activeRequest = this.authenticate(function (authError, accountId) {
+                if (authError || accountId === null) {
+                    console.error("[MMM-SugarValue] authenticate failed: %s", authError);
+                    callback({ error: { statusCode: -1, message: "Authenticate fail: " + authError }, readings: [] });
+                    return;
                 }
-                else {
-                    var sessionId = body.substring(1, body.length - 1);
+                console.log("[MMM-SugarValue] step 2: logging in (accountId length=%d)", accountId.length);
+                activeRequest = _this.loginById(accountId, function (loginError, sessionId) {
+                    if (loginError || sessionId === null) {
+                        console.error("[MMM-SugarValue] loginById failed: %s", loginError);
+                        callback({ error: { statusCode: -1, message: "Login fail: " + loginError }, readings: [] });
+                        return;
+                    }
+                    console.log("[MMM-SugarValue] step 3: fetching readings (sessionId length=%d)", sessionId.length);
                     activeRequest = _this.fetchLatest(sessionId, maxCount, minutes, function (_error, _response, body) {
                         if (_error != null || _response.statusCode !== 200) {
+                            console.error("[MMM-SugarValue] fetchLatest failed status=%s error=%s", _response == undefined ? "no-response" : _response.statusCode, _error);
                             callback({
                                 error: {
                                     statusCode: _response == undefined ? -1 : _response.statusCode,
@@ -141,14 +168,31 @@
                             });
                         }
                         else {
-                            var rawReadings = JSON.parse(body);
+                            if (!body) {
+                                console.log("[MMM-SugarValue] empty body — no readings available");
+                                callback({ error: undefined, readings: [] });
+                                return;
+                            }
+                            var rawReadings = void 0;
+                            try {
+                                rawReadings = JSON.parse(body);
+                            }
+                            catch (parseError) {
+                                console.error("[MMM-SugarValue] JSON parse failed: %s body=%s", parseError, body);
+                                callback({
+                                    error: { statusCode: _response.statusCode, message: "Failed to parse readings: " + parseError },
+                                    readings: []
+                                });
+                                return;
+                            }
+                            console.log("[MMM-SugarValue] got %d reading(s)", rawReadings.length);
                             callback({
                                 error: undefined,
                                 readings: rawReadings.map(function (reading) { return new DexcomReadingImpl(reading); })
                             });
                         }
                     });
-                }
+                });
             });
             return function () { return activeRequest.abort(); };
         };
@@ -178,15 +222,22 @@
             var _this = this;
             switch (notification) {
                 case ModuleNotification.CONFIG:
-                    if (this._started)
+                    if (this._started) {
+                        console.log("[MMM-SugarValue] CONFIG received but already started, ignoring");
                         return;
+                    }
                     this._started = true;
+                    console.log("[MMM-SugarValue] CONFIG received, starting");
                     var config_1 = payload.config;
                     if (config_1 !== undefined) {
+                        console.log("[MMM-SugarValue] server=%s updateSecs=%d units=%s", config_1.serverUrl, config_1.updateSecs, config_1.units);
                         var api_1 = DexcomApiFactory(config_1.serverUrl, config_1.username, config_1.password);
                         this._timeoutHandle = setTimeout(function () {
                             _this.fetchData(api_1, config_1.updateSecs);
                         }, 500);
+                    }
+                    else {
+                        console.error("[MMM-SugarValue] CONFIG payload has no config object");
                     }
                     break;
             }
@@ -216,6 +267,7 @@
                     settled = true;
                     _this._timeoutHandle = null;
                     _this._abortFetch = null;
+                    console.error("[MMM-SugarValue] fetch timed out after %ds", timeoutMs / 1000);
                     _this._sendSocketNotification(ModuleNotification.DATA, {
                         apiResponse: {
                             error: { statusCode: -1, message: "API request timed out after " + (timeoutMs / 1000) + " seconds" },
@@ -227,6 +279,7 @@
             }, timeoutMs);
             // Track the in-flight timeout so stop() can cancel it
             this._timeoutHandle = timeoutId;
+            console.log("[MMM-SugarValue] fetching data from Dexcom");
             try {
                 var abortRequest = api.fetchData(function (response) {
                     if (!settled) {
@@ -234,6 +287,12 @@
                         clearTimeout(timeoutId);
                         _this._timeoutHandle = null;
                         _this._abortFetch = null;
+                        if (response.error !== undefined) {
+                            console.error("[MMM-SugarValue] fetch error status=%d message=%s", response.error.statusCode, response.error.message);
+                        }
+                        else {
+                            console.log("[MMM-SugarValue] fetch ok, readings=%d", response.readings.length);
+                        }
                         // Skip notification if stop() was called while the request was in-flight
                         if (_this._started) {
                             _this._sendSocketNotification(ModuleNotification.DATA, { apiResponse: response });
@@ -248,6 +307,7 @@
                 clearTimeout(timeoutId);
                 this._timeoutHandle = null;
                 this._abortFetch = null;
+                console.error("[MMM-SugarValue] exception during fetch: %s", error);
                 this._sendSocketNotification(ModuleNotification.DATA, {
                     apiResponse: {
                         error: { statusCode: -1, message: "Exception in fetchData: " + error },

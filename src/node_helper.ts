@@ -28,15 +28,22 @@ module.exports = NodeHelper.create({
     socketNotificationReceived(notification: ModuleNotification, payload: NotificationPayload) {
         switch (notification) {
             case ModuleNotification.CONFIG:
-                if (this._started) return;
+                if (this._started) {
+                    console.log("[MMM-SugarValue] CONFIG received but already started, ignoring");
+                    return;
+                }
                 this._started = true;
+                console.log("[MMM-SugarValue] CONFIG received, starting");
                 const config: Config | undefined = payload.config;
                 if (config !== undefined) {
+                    console.log("[MMM-SugarValue] server=%s updateSecs=%d units=%s", config.serverUrl, config.updateSecs, config.units);
                     const api: DexcomApi = DexcomApiFactory(config.serverUrl, config.username, config.password);
 
                     this._timeoutHandle = setTimeout(() => {
                         this.fetchData(api, config.updateSecs);
                     }, 500);
+                } else {
+                    console.error("[MMM-SugarValue] CONFIG payload has no config object");
                 }
                 break;
         }
@@ -67,6 +74,7 @@ module.exports = NodeHelper.create({
                 settled = true;
                 this._timeoutHandle = null;
                 this._abortFetch = null;
+                console.error("[MMM-SugarValue] fetch timed out after %ds", timeoutMs / 1000);
                 this._sendSocketNotification(ModuleNotification.DATA, {
                     apiResponse: {
                         error: { statusCode: -1, message: "API request timed out after " + (timeoutMs / 1000) + " seconds" },
@@ -80,6 +88,7 @@ module.exports = NodeHelper.create({
         // Track the in-flight timeout so stop() can cancel it
         this._timeoutHandle = timeoutId;
 
+        console.log("[MMM-SugarValue] fetching data from Dexcom");
         try {
             const abortRequest = api.fetchData((response: DexcomApiResponse) => {
                 if (!settled) {
@@ -87,6 +96,11 @@ module.exports = NodeHelper.create({
                     clearTimeout(timeoutId);
                     this._timeoutHandle = null;
                     this._abortFetch = null;
+                    if (response.error !== undefined) {
+                        console.error("[MMM-SugarValue] fetch error status=%d message=%s", response.error.statusCode, response.error.message);
+                    } else {
+                        console.log("[MMM-SugarValue] fetch ok, readings=%d", response.readings.length);
+                    }
                     // Skip notification if stop() was called while the request was in-flight
                     if (this._started) {
                         this._sendSocketNotification(ModuleNotification.DATA, { apiResponse: response });
@@ -100,6 +114,7 @@ module.exports = NodeHelper.create({
             clearTimeout(timeoutId);
             this._timeoutHandle = null;
             this._abortFetch = null;
+            console.error("[MMM-SugarValue] exception during fetch: %s", error);
             this._sendSocketNotification(ModuleNotification.DATA, {
                 apiResponse: {
                     error: { statusCode: -1, message: "Exception in fetchData: " + error },

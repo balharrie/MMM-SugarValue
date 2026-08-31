@@ -5809,6 +5809,7 @@
         },
         start: function () {
             var _this = this;
+            console.log("[MMM-SugarValue] start()");
             var config = this.config;
             if (config == undefined) {
                 this.message = "Configuration is not defined";
@@ -5825,8 +5826,12 @@
             this._updateDom();
             var self = this;
             self.socket().socket.on("connect", function () {
+                console.log("[MMM-SugarValue] socket connected, sending CONFIG");
                 if (self.config !== undefined) {
                     self._sendSocketNotification(ModuleNotification.CONFIG, { config: self.config });
+                }
+                else {
+                    console.error("[MMM-SugarValue] socket connected but config is undefined");
                 }
             });
             setInterval(function () {
@@ -5837,6 +5842,7 @@
         },
         notificationReceived: function (notification, payload, sender) {
             if (notification === "ALL_MODULES_STARTED") {
+                console.log("[MMM-SugarValue] ALL_MODULES_STARTED, sending CONFIG");
                 this._sendSocketNotification(ModuleNotification.CONFIG, { config: this.config });
             }
         },
@@ -5845,13 +5851,23 @@
                 var apiResponse = payload.apiResponse;
                 if (apiResponse !== undefined) {
                     if (apiResponse.error !== undefined) {
+                        console.error("[MMM-SugarValue] DATA received with error status=%d message=%s", apiResponse.error.statusCode, apiResponse.error.message);
                         this.message = apiResponse.error.message + ":" + apiResponse.error.statusCode;
                     }
                     else {
+                        console.log("[MMM-SugarValue] DATA received, readings=%d", apiResponse.readings.length);
+                        if (apiResponse.readings.length > 0) {
+                            var r = apiResponse.readings[0];
+                            console.log("[MMM-SugarValue] first reading: sugarMg=%d sugarMmol=%s trend=%s date=%s", r.sugarMg, r.sugarMmol, r.trend, r.date);
+                        }
                         this.reading = apiResponse.readings.length > 0 ? apiResponse.readings[0] : undefined;
                         this.message = undefined;
                     }
+                    console.log("[MMM-SugarValue] calling updateDom, message=%s reading=%s", this.message, this.reading ? "set" : "undefined");
                     this._updateDom();
+                }
+                else {
+                    console.error("[MMM-SugarValue] DATA notification received but apiResponse is undefined");
                 }
             }
         },

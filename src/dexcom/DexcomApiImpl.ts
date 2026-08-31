@@ -40,7 +40,7 @@ class DexcomApiImpl implements DexcomApi {
             {
                 uri: "https://" + uri,
                 method: "POST",
-                timeout: 20000, // 20 second timeout for network requests
+                timeout: 20000,
                 agent: new https.Agent({
                     host: this._server,
                     port: 443,
@@ -59,15 +59,41 @@ class DexcomApiImpl implements DexcomApi {
         );
     }
 
-    private login(callback?: request.RequestCallback): request.Request {
+    private authenticate(callback: (error: any, accountId: string | null) => void): request.Request {
         return this.doPost(
-            this._server + "/ShareWebServices/Services/General/LoginPublisherAccountByName",
+            this._server + "/ShareWebServices/Services/General/AuthenticatePublisherAccount",
             {
                 "accountName": this._username,
                 "password": this._password,
                 "applicationId": DexcomApiImpl.APPLICATION_ID
-            } as LoginRequestBody,
-            callback
+            },
+            (error: any, response: request.Response, body: any) => {
+                if (error != null || response.statusCode !== 200) {
+                    callback(error != null ? error : new Error("AuthenticatePublisherAccount HTTP " + (response ? response.statusCode : "no-response")), null);
+                } else {
+                    const accountId: string = (body as string).substring(1, (body as string).length - 1);
+                    callback(null, accountId);
+                }
+            }
+        );
+    }
+
+    private loginById(accountId: string, callback: (error: any, sessionId: string | null) => void): request.Request {
+        return this.doPost(
+            this._server + "/ShareWebServices/Services/General/LoginPublisherAccountById",
+            {
+                "accountId": accountId,
+                "password": this._password,
+                "applicationId": DexcomApiImpl.APPLICATION_ID
+            },
+            (error: any, response: request.Response, body: any) => {
+                if (error != null || response.statusCode !== 200) {
+                    callback(error != null ? error : new Error("LoginPublisherAccountById HTTP " + (response ? response.statusCode : "no-response")), null);
+                } else {
+                    const sessionId: string = (body as string).substring(1, (body as string).length - 1);
+                    callback(null, sessionId);
+                }
+            }
         );
     }
 
@@ -88,35 +114,57 @@ class DexcomApiImpl implements DexcomApi {
     public fetchData(callback: DexcomApiCallback, maxCount?: number, minutes?: number): () => void {
         // activeRequest is reassigned as the two-step chain progresses (login → fetchLatest),
         // so the returned abort closure always cancels whichever request is currently in-flight.
-        let activeRequest: request.Request = this.login((error: any, response: request.Response, body: any) => {
-            if (error != null || response.statusCode !== 200) {
-                callback({
-                    error: {
-                        statusCode: response == undefined ? -1 : response.statusCode,
-                        message: "Login fail: " + (error == undefined ? "" : error)
-                    },
-                    readings: []
-                });
-            } else {
-                let sessionId: string = (body as string).substring(1, (body as string).length - 1)
+        console.log("[MMM-SugarValue] step 1: authenticating with %s", this._server);
+        let activeRequest: request.Request = this.authenticate((authError: any, accountId: string | null) => {
+            if (authError || accountId === null) {
+                console.error("[MMM-SugarValue] authenticate failed: %s", authError);
+                callback({ error: { statusCode: -1, message: "Authenticate fail: " + authError }, readings: [] });
+                return;
+            }
+            console.log("[MMM-SugarValue] step 2: logging in (accountId length=%d)", accountId.length);
+            activeRequest = this.loginById(accountId, (loginError: any, sessionId: string | null) => {
+                if (loginError || sessionId === null) {
+                    console.error("[MMM-SugarValue] loginById failed: %s", loginError);
+                    callback({ error: { statusCode: -1, message: "Login fail: " + loginError }, readings: [] });
+                    return;
+                }
+                console.log("[MMM-SugarValue] step 3: fetching readings (sessionId length=%d)", sessionId.length);
                 activeRequest = this.fetchLatest(sessionId, maxCount, minutes, (_error: any, _response: request.Response, body: any) => {
                     if (_error != null || _response.statusCode !== 200) {
+                        console.error("[MMM-SugarValue] fetchLatest failed status=%s error=%s",
+                            _response == undefined ? "no-response" : _response.statusCode, _error);
                         callback({
                             error: {
                                 statusCode: _response == undefined ? -1 : _response.statusCode,
-                                message: "Fetch readings fail: "+ (_error == undefined ? "" : _error)
+                                message: "Fetch readings fail: " + (_error == undefined ? "" : _error)
                             },
                             readings: []
                         });
                     } else {
-                        const rawReadings: DexcomRawReading[] = JSON.parse(body);
+                        if (!body) {
+                            console.log("[MMM-SugarValue] empty body — no readings available");
+                            callback({ error: undefined, readings: [] });
+                            return;
+                        }
+                        let rawReadings: DexcomRawReading[];
+                        try {
+                            rawReadings = JSON.parse(body);
+                        } catch (parseError) {
+                            console.error("[MMM-SugarValue] JSON parse failed: %s body=%s", parseError, body);
+                            callback({
+                                error: { statusCode: _response.statusCode, message: "Failed to parse readings: " + parseError },
+                                readings: []
+                            });
+                            return;
+                        }
+                        console.log("[MMM-SugarValue] got %d reading(s)", rawReadings.length);
                         callback({
                             error: undefined,
                             readings: rawReadings.map(reading => new DexcomReadingImpl(reading))
                         });
                     }
                 });
-            }
+            });
         });
         return () => activeRequest.abort();
     }
