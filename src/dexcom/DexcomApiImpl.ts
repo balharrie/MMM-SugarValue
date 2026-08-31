@@ -85,8 +85,10 @@ class DexcomApiImpl implements DexcomApi {
         );
     }
 
-    public fetchData(callback: DexcomApiCallback, maxCount?: number, minutes?: number): void {
-        this.login((error: any, response: request.Response, body: any) => {
+    public fetchData(callback: DexcomApiCallback, maxCount?: number, minutes?: number): () => void {
+        // activeRequest is reassigned as the two-step chain progresses (login → fetchLatest),
+        // so the returned abort closure always cancels whichever request is currently in-flight.
+        let activeRequest: request.Request = this.login((error: any, response: request.Response, body: any) => {
             if (error != null || response.statusCode !== 200) {
                 callback({
                     error: {
@@ -97,7 +99,7 @@ class DexcomApiImpl implements DexcomApi {
                 });
             } else {
                 let sessionId: string = (body as string).substring(1, (body as string).length - 1)
-                this.fetchLatest(sessionId, maxCount, minutes, (_error: any, _response: request.Response, body: any) => {
+                activeRequest = this.fetchLatest(sessionId, maxCount, minutes, (_error: any, _response: request.Response, body: any) => {
                     if (_error != null || _response.statusCode !== 200) {
                         callback({
                             error: {
@@ -116,6 +118,7 @@ class DexcomApiImpl implements DexcomApi {
                 });
             }
         });
+        return () => activeRequest.abort();
     }
 }
 

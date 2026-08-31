@@ -15,6 +15,7 @@ interface MagicMirrorNodeHelperApi {
 interface ModuleNodeHelper extends MagicMirrorNodeHelperApi {
     _started: boolean;
     _timeoutHandle: any;
+    _abortFetch: (() => void) | null;
     fetchData(api: DexcomApi, updateSecs: number): void;
     stop(): void;
     _sendSocketNotification(notification: ModuleNotification, payload: NotificationPayload): void;
@@ -23,6 +24,7 @@ interface ModuleNodeHelper extends MagicMirrorNodeHelperApi {
 module.exports = NodeHelper.create({
     _started: false,
     _timeoutHandle: null as any,
+    _abortFetch: null as any,
     socketNotificationReceived(notification: ModuleNotification, payload: NotificationPayload) {
         switch (notification) {
             case ModuleNotification.CONFIG:
@@ -45,6 +47,10 @@ module.exports = NodeHelper.create({
             clearTimeout(this._timeoutHandle);
             this._timeoutHandle = null;
         }
+        if (this._abortFetch !== null) {
+            this._abortFetch();
+            this._abortFetch = null;
+        }
     },
     fetchData(api: DexcomApi, updateSecs: number) {
         let settled = false;
@@ -60,6 +66,7 @@ module.exports = NodeHelper.create({
             if (!settled) {
                 settled = true;
                 this._timeoutHandle = null;
+                this._abortFetch = null;
                 this._sendSocketNotification(ModuleNotification.DATA, {
                     apiResponse: {
                         error: { statusCode: -1, message: "API request timed out after " + (timeoutMs / 1000) + " seconds" },
@@ -74,19 +81,25 @@ module.exports = NodeHelper.create({
         this._timeoutHandle = timeoutId;
 
         try {
-            api.fetchData((response: DexcomApiResponse) => {
+            const abortRequest = api.fetchData((response: DexcomApiResponse) => {
                 if (!settled) {
                     settled = true;
                     clearTimeout(timeoutId);
                     this._timeoutHandle = null;
-                    this._sendSocketNotification(ModuleNotification.DATA, { apiResponse: response });
+                    this._abortFetch = null;
+                    // Skip notification if stop() was called while the request was in-flight
+                    if (this._started) {
+                        this._sendSocketNotification(ModuleNotification.DATA, { apiResponse: response });
+                    }
                     reschedule();
                 }
             }, 1);
+            this._abortFetch = abortRequest;
         } catch (error) {
             settled = true;
             clearTimeout(timeoutId);
             this._timeoutHandle = null;
+            this._abortFetch = null;
             this._sendSocketNotification(ModuleNotification.DATA, {
                 apiResponse: {
                     error: { statusCode: -1, message: "Exception in fetchData: " + error },
